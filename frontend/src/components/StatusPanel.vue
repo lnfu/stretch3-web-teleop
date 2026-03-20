@@ -14,23 +14,19 @@ const toDeg = (r: number) => ((r * 180) / Math.PI).toFixed(1)
     <template v-else>
 
       <!-- Charging -->
-      <div
-        :class="[
-          'w-14 h-14 rounded-2xl flex items-center justify-center text-center shrink-0',
-          status.is_charging ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-500',
-        ]"
-      >
-        <span class="text-[10px] font-bold leading-tight">{{ status.is_charging ? 'Charg-\ning' : 'Bat-\ntery' }}</span>
+      <div :class="[
+        'w-14 h-14 rounded-full flex items-center justify-center text-center shrink-0',
+        status.is_charging ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-500',
+      ]">
+        <span class="text-[10px] font-bold leading-tight">{{ status.is_charging ? 'CHARGING' : 'BATTERY' }}</span>
       </div>
 
       <!-- Runstop -->
-      <div
-        :class="[
-          'w-14 h-14 rounded-2xl flex items-center justify-center text-center shrink-0',
-          status.runstop ? 'bg-red-500 text-white' : 'bg-green-100 text-green-700',
-        ]"
-      >
-        <span class="text-[10px] font-bold leading-tight">{{ status.runstop ? 'RUN-\nSTOP' : 'OK' }}</span>
+      <div :class="[
+        'w-14 h-14 rounded-full flex items-center justify-center text-center shrink-0',
+        status.runstop ? 'bg-red-500 text-white' : 'bg-green-100 text-green-700',
+      ]">
+        <span class="text-[10px] font-bold leading-tight">{{ status.runstop ? 'RUNSTOP' : 'OK' }}</span>
       </div>
 
       <div class="w-px self-stretch bg-gray-200 shrink-0 mx-1" />
@@ -51,11 +47,13 @@ const toDeg = (r: number) => ((r * 180) / Math.PI).toFixed(1)
         </div>
         <div class="flex flex-col gap-0.5 w-20 shrink-0">
           <span class="text-[10px] text-gray-400 leading-none">Linear</span>
-          <span class="text-xs font-mono text-gray-800 leading-none">{{ status.odometry.twist.linear.toFixed(3) }} m/s</span>
+          <span class="text-xs font-mono text-gray-800 leading-none">{{ status.odometry.twist.linear.toFixed(3) }}
+            m/s</span>
         </div>
         <div class="flex flex-col gap-0.5 w-20 shrink-0">
           <span class="text-[10px] text-gray-400 leading-none">Angular</span>
-          <span class="text-xs font-mono text-gray-800 leading-none">{{ status.odometry.twist.angular.toFixed(3) }} r/s</span>
+          <span class="text-xs font-mono text-gray-800 leading-none">{{ status.odometry.twist.angular.toFixed(3) }}
+            r/s</span>
         </div>
       </div>
 

@@ -97,7 +97,7 @@ async function drawRotatedFrame() {
     drawRotatedImage(ctx, rgbImg, deg, canvas.width, canvas.height)
     if (depthUrl.value) {
       const depthImg = await loadImage(depthUrl.value)
-      ctx.globalAlpha = 0.5
+      ctx.globalAlpha = 0.2
       drawRotatedImage(ctx, depthImg, deg, canvas.width, canvas.height)
       ctx.globalAlpha = 1.0
     }
@@ -117,7 +117,7 @@ async function drawOverlay() {
 
   if (depthUrl.value) {
     const depthImg = await loadImage(depthUrl.value)
-    ctx.globalAlpha = 0.5
+    ctx.globalAlpha = 0.2
     ctx.drawImage(depthImg, 0, 0, canvas.width, canvas.height)
     ctx.globalAlpha = 1.0
   }
@@ -141,38 +141,22 @@ watch([rgbUrl, depthUrl, mode], () => {
 
     <!-- Rotated display: canvas with correct intrinsic dimensions -->
     <template v-if="isRotated">
-      <canvas
-        v-show="!noSignal"
-        ref="rotatedCanvasRef"
-        class="w-full h-full object-contain"
-      />
-      <div
-        v-if="noSignal"
-        class="flex-1 flex items-center justify-center text-gray-500 text-sm"
-      >
+      <canvas v-show="!noSignal" ref="rotatedCanvasRef" class="w-full h-full object-contain" />
+      <div v-if="noSignal" class="flex-1 flex items-center justify-center text-gray-500 text-sm">
         No signal
       </div>
     </template>
 
     <!-- Non-rotated display: original img / canvas approach -->
     <template v-else>
-      <img
-        v-if="mode !== 'overlay' && (mode === 'rgb' ? rgbUrl : depthUrl)"
-        :src="mode === 'rgb' ? rgbUrl! : depthUrl!"
-        class="w-full h-full object-contain"
-        alt="camera feed"
-      />
-      <div
-        v-else-if="mode !== 'overlay'"
-        class="flex-1 flex items-center justify-center text-gray-500 text-sm"
-      >
+      <img v-if="mode !== 'overlay' && (mode === 'rgb' ? rgbUrl : depthUrl)" :src="mode === 'rgb' ? rgbUrl! : depthUrl!"
+        class="w-full h-full object-contain" alt="camera feed" />
+      <div v-else-if="mode !== 'overlay'" class="flex-1 flex items-center justify-center text-gray-500 text-sm">
         No signal
       </div>
       <canvas v-if="mode === 'overlay'" ref="overlayCanvasRef" class="w-full h-full object-contain" />
-      <div
-        v-if="mode === 'overlay' && !rgbUrl"
-        class="absolute inset-0 flex items-center justify-center text-gray-500 text-sm"
-      >
+      <div v-if="mode === 'overlay' && !rgbUrl"
+        class="absolute inset-0 flex items-center justify-center text-gray-500 text-sm">
         No signal
       </div>
     </template>
