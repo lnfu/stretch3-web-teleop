@@ -24,7 +24,7 @@ interface Group {
 const TOP_GROUPS: Group[] = [
   {
     name: 'Base',
-    accent: '#60a5fa',
+    accent: '#2563eb',
     joints: [
       { index: 0, label: 'Translate', unit: 'm', step: 0.05 },
       { index: 1, label: 'Rotate', unit: 'rad', step: 0.1 },
@@ -32,7 +32,7 @@ const TOP_GROUPS: Group[] = [
   },
   {
     name: 'Arm',
-    accent: '#34d399',
+    accent: '#059669',
     joints: [
       { index: 2, label: 'Lift', unit: 'm', step: 0.05 },
       { index: 3, label: 'Arm', unit: 'm', step: 0.02 },
@@ -40,7 +40,7 @@ const TOP_GROUPS: Group[] = [
   },
   {
     name: 'Wrist',
-    accent: '#fb923c',
+    accent: '#ea580c',
     joints: [
       { index: 6, label: 'Yaw', unit: 'rad', step: 0.1 },
       { index: 7, label: 'Pitch', unit: 'rad', step: 0.1 },
@@ -94,24 +94,24 @@ function value(index: number): string {
     <!-- Top row: Base | Arm | Wrist -->
     <div class="grid grid-cols-[2fr_2fr_3fr] gap-2">
       <div v-for="g in TOP_GROUPS" :key="g.name"
-        class="grid gap-2 border border-gray-700/60 rounded-xl p-3 bg-gray-900/50" style="grid-template-rows: auto 1fr">
+        class="grid gap-2 border border-gray-200 rounded-xl p-3 bg-white" style="grid-template-rows: auto 1fr">
         <span class="text-[11px] font-bold uppercase tracking-widest text-center leading-none pb-0.5"
           :style="{ color: g.accent }">{{ g.name }}</span>
 
         <div class="grid gap-2" :style="{ gridTemplateColumns: `repeat(${g.joints.length}, 1fr)` }">
           <div v-for="j in g.joints" :key="j.index" class="grid gap-1.5" style="grid-template-rows: auto 1fr">
             <div class="grid grid-cols-[1fr_auto] items-baseline px-1">
-              <span class="text-xs text-gray-400 leading-none">{{ j.label }}</span>
-              <span class="text-xs font-mono text-gray-300 leading-none">
-                {{ value(j.index) }}<span class="text-gray-600 ml-0.5 text-[10px]">{{ j.unit }}</span>
+              <span class="text-xs text-gray-500 leading-none">{{ j.label }}</span>
+              <span class="text-xs font-mono text-gray-700 leading-none">
+                {{ value(j.index) }}<span class="text-gray-400 ml-0.5 text-[10px]">{{ j.unit }}</span>
               </span>
             </div>
-            <div class="grid grid-cols-2 rounded-lg overflow-hidden">
+            <div class="grid grid-cols-2 rounded-lg overflow-hidden border border-gray-200">
               <button
-                class="py-5 bg-gray-800 hover:bg-red-900 active:bg-red-700 text-white text-2xl font-black select-none transition-colors border-r border-gray-700 leading-none"
+                class="py-5 bg-gray-50 hover:bg-red-100 active:bg-red-200 text-gray-800 hover:text-red-700 text-2xl font-black select-none transition-colors border-r border-gray-200 leading-none"
                 @click="adjust(j.index, -j.step)">−</button>
               <button
-                class="py-5 bg-gray-800 hover:bg-blue-900 active:bg-blue-700 text-white text-2xl font-black select-none transition-colors leading-none"
+                class="py-5 bg-gray-50 hover:bg-blue-100 active:bg-blue-200 text-gray-800 hover:text-blue-700 text-2xl font-black select-none transition-colors leading-none"
                 @click="adjust(j.index, j.step)">+</button>
             </div>
           </div>
@@ -123,23 +123,23 @@ function value(index: number): string {
     <div class="grid grid-cols-[2fr_2fr_3fr] gap-2">
 
       <!-- Head -->
-      <div class="grid gap-2 border border-gray-700/60 rounded-xl p-3 bg-gray-900/50" style="grid-template-rows: auto 1fr">
+      <div class="grid gap-2 border border-gray-200 rounded-xl p-3 bg-white" style="grid-template-rows: auto 1fr">
         <span class="text-[11px] font-bold uppercase tracking-widest text-center leading-none pb-0.5"
-          style="color: #c084fc">Head</span>
+          style="color: #9333ea">Head</span>
         <div class="grid grid-cols-2 gap-2">
           <div v-for="j in HEAD_JOINTS" :key="j.index" class="grid gap-1.5" style="grid-template-rows: auto 1fr">
             <div class="grid grid-cols-[1fr_auto] items-baseline px-1">
-              <span class="text-xs text-gray-400 leading-none">{{ j.label }}</span>
-              <span class="text-xs font-mono text-gray-300 leading-none">
-                {{ value(j.index) }}<span class="text-gray-600 ml-0.5 text-[10px]">{{ j.unit }}</span>
+              <span class="text-xs text-gray-500 leading-none">{{ j.label }}</span>
+              <span class="text-xs font-mono text-gray-700 leading-none">
+                {{ value(j.index) }}<span class="text-gray-400 ml-0.5 text-[10px]">{{ j.unit }}</span>
               </span>
             </div>
-            <div class="grid grid-cols-2 rounded-lg overflow-hidden">
+            <div class="grid grid-cols-2 rounded-lg overflow-hidden border border-gray-200">
               <button
-                class="py-5 bg-gray-800 hover:bg-red-900 active:bg-red-700 text-white text-2xl font-black select-none transition-colors border-r border-gray-700 leading-none"
+                class="py-5 bg-gray-50 hover:bg-red-100 active:bg-red-200 text-gray-800 hover:text-red-700 text-2xl font-black select-none transition-colors border-r border-gray-200 leading-none"
                 @click="adjust(j.index, -j.step)">−</button>
               <button
-                class="py-5 bg-gray-800 hover:bg-blue-900 active:bg-blue-700 text-white text-2xl font-black select-none transition-colors leading-none"
+                class="py-5 bg-gray-50 hover:bg-blue-100 active:bg-blue-200 text-gray-800 hover:text-blue-700 text-2xl font-black select-none transition-colors leading-none"
                 @click="adjust(j.index, j.step)">+</button>
             </div>
           </div>
@@ -147,21 +147,21 @@ function value(index: number): string {
       </div>
 
       <!-- Gripper -->
-      <div class="grid gap-2 border border-gray-700/60 rounded-xl px-3 py-3 bg-gray-900/50" style="grid-template-rows: auto 1fr auto">
+      <div class="grid gap-2 border border-gray-200 rounded-xl px-3 py-3 bg-white" style="grid-template-rows: auto 1fr auto">
         <div class="flex items-center gap-2">
-          <span class="text-[11px] font-bold uppercase tracking-widest" style="color: #f472b6">Gripper</span>
-          <span class="text-xs font-mono text-gray-400">{{ gripperStatus }}</span>
+          <span class="text-[11px] font-bold uppercase tracking-widest" style="color: #db2777">Gripper</span>
+          <span class="text-xs font-mono text-gray-500">{{ gripperStatus }}</span>
         </div>
         <div class="grid grid-cols-12 gap-1">
           <button v-for="(val, i) in GRIPPER_PRESETS" :key="val" :style="{ backgroundColor: gripperColor(i) }"
             :title="`${val}`" :class="[
               'rounded-md select-none transition-all duration-150',
               val === lastGripperCmd
-                ? 'ring-2 ring-white/80 ring-offset-1 ring-offset-gray-900 scale-y-110 brightness-125'
-                : 'hover:brightness-150 hover:scale-y-105',
+                ? 'ring-2 ring-gray-800/60 ring-offset-1 ring-offset-white scale-y-110 brightness-110'
+                : 'hover:brightness-110 hover:scale-y-105',
             ]" @click="setGripper(val)" />
         </div>
-        <div class="grid grid-cols-2 text-[10px] text-gray-600 px-0.5">
+        <div class="grid grid-cols-2 text-[10px] text-gray-400 px-0.5">
           <span>close</span>
           <span class="text-right">open</span>
         </div>
