@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import { useRobotStore } from '../stores/robotStore'
 import { sendMessage } from '../composables/useWebSocket'
+import StatusPanel from './StatusPanel.vue'
 
 const robotStore = useRobotStore()
 const lastGripperCmd = ref(0)
@@ -116,10 +117,13 @@ function value(index: number): string {
           </div>
         </div>
       </div>
+    </div>
 
-      <!-- Head group -->
-      <div class="grid gap-2 border border-gray-700/60 rounded-xl p-3 bg-gray-900/50"
-        style="grid-template-rows: auto 1fr">
+    <!-- Bottom row: Head | Gripper | Status -->
+    <div class="grid grid-cols-[2fr_2fr_3fr] gap-2">
+
+      <!-- Head -->
+      <div class="grid gap-2 border border-gray-700/60 rounded-xl p-3 bg-gray-900/50" style="grid-template-rows: auto 1fr">
         <span class="text-[11px] font-bold uppercase tracking-widest text-center leading-none pb-0.5"
           style="color: #c084fc">Head</span>
         <div class="grid grid-cols-2 gap-2">
@@ -143,16 +147,15 @@ function value(index: number): string {
       </div>
 
       <!-- Gripper -->
-      <div class="col-span-2 grid gap-2 border border-gray-700/60 rounded-xl px-4 py-3 bg-gray-900/50"
-        style="grid-template-rows: auto 1fr auto">
-        <div class="grid grid-cols-[auto_1fr] items-center gap-2">
+      <div class="grid gap-2 border border-gray-700/60 rounded-xl px-3 py-3 bg-gray-900/50" style="grid-template-rows: auto 1fr auto">
+        <div class="flex items-center gap-2">
           <span class="text-[11px] font-bold uppercase tracking-widest" style="color: #f472b6">Gripper</span>
           <span class="text-xs font-mono text-gray-400">{{ gripperStatus }}</span>
         </div>
-        <div class="grid grid-cols-12 gap-1.5">
+        <div class="grid grid-cols-12 gap-1">
           <button v-for="(val, i) in GRIPPER_PRESETS" :key="val" :style="{ backgroundColor: gripperColor(i) }"
             :title="`${val}`" :class="[
-              'rounded-lg select-none transition-all duration-150 min-h-[52px]',
+              'rounded-md select-none transition-all duration-150',
               val === lastGripperCmd
                 ? 'ring-2 ring-white/80 ring-offset-1 ring-offset-gray-900 scale-y-110 brightness-125'
                 : 'hover:brightness-150 hover:scale-y-105',
@@ -163,6 +166,9 @@ function value(index: number): string {
           <span class="text-right">open</span>
         </div>
       </div>
+
+      <!-- Status -->
+      <StatusPanel />
 
     </div>
   </div>

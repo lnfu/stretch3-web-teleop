@@ -9,39 +9,56 @@ const toDeg = (r: number) => ((r * 180) / Math.PI).toFixed(1)
 </script>
 
 <template>
-  <div class="px-4 py-2.5 border-t border-gray-700 text-sm">
-    <div v-if="!status" class="text-gray-400">Waiting for robot status...</div>
-    <div v-else class="flex items-center gap-5 flex-wrap">
-      <!-- Badges -->
-      <div class="flex gap-2 shrink-0">
-        <span
-          :class="[
-            'font-medium px-3 py-1 rounded-full',
-            status.is_charging ? 'bg-green-600 text-white' : 'bg-gray-600 text-gray-200',
-          ]"
-        >
-          {{ status.is_charging ? 'Charging' : 'Battery' }}
-        </span>
-        <span
-          :class="[
-            'font-medium px-3 py-1 rounded-full',
-            status.runstop ? 'bg-red-600 text-white' : 'bg-green-700 text-white',
-          ]"
-        >
-          {{ status.runstop ? 'RUNSTOP' : 'OK' }}
-        </span>
+  <div class="flex items-center gap-2 px-3 py-3 border border-gray-700/60 rounded-xl bg-gray-900/50">
+    <div v-if="!status" class="text-gray-400 text-xs">Waiting for robot status...</div>
+    <template v-else>
+
+      <!-- Charging: fixed square → nearly circular -->
+      <div
+        :class="[
+          'w-14 h-14 rounded-2xl flex items-center justify-center text-center shrink-0',
+          status.is_charging ? 'bg-green-600 text-white' : 'bg-gray-700 text-gray-300',
+        ]"
+      >
+        <span class="text-[10px] font-bold leading-tight">{{ status.is_charging ? 'Charg-\ning' : 'Bat-\ntery' }}</span>
       </div>
 
-      <div class="h-4 w-px bg-gray-600 shrink-0" />
-
-      <!-- Odometry: all in one row -->
-      <div class="flex gap-4 font-mono flex-wrap">
-        <span><span class="text-gray-400 font-sans">X</span> {{ status.odometry.pose.x.toFixed(2) }}m</span>
-        <span><span class="text-gray-400 font-sans">Y</span> {{ status.odometry.pose.y.toFixed(2) }}m</span>
-        <span><span class="text-gray-400 font-sans">θ</span> {{ toDeg(status.odometry.pose.theta) }}°</span>
-        <span><span class="text-gray-400 font-sans">Lin</span> {{ status.odometry.twist.linear.toFixed(3) }}m/s</span>
-        <span><span class="text-gray-400 font-sans">Ang</span> {{ status.odometry.twist.angular.toFixed(3) }}r/s</span>
+      <!-- Runstop: fixed square → nearly circular -->
+      <div
+        :class="[
+          'w-14 h-14 rounded-2xl flex items-center justify-center text-center shrink-0',
+          status.runstop ? 'bg-red-600 text-white' : 'bg-green-800 text-green-200',
+        ]"
+      >
+        <span class="text-[10px] font-bold leading-tight">{{ status.runstop ? 'RUN-\nSTOP' : 'OK' }}</span>
       </div>
-    </div>
+
+      <div class="w-px self-stretch bg-gray-700 shrink-0 mx-1" />
+
+      <!-- Odometry: fixed-width columns, key on top, value below -->
+      <div class="flex gap-2 flex-1">
+        <div class="flex flex-col gap-0.5 w-14 shrink-0">
+          <span class="text-[10px] text-gray-500 leading-none">X</span>
+          <span class="text-xs font-mono text-gray-200 leading-none">{{ status.odometry.pose.x.toFixed(2) }} m</span>
+        </div>
+        <div class="flex flex-col gap-0.5 w-14 shrink-0">
+          <span class="text-[10px] text-gray-500 leading-none">Y</span>
+          <span class="text-xs font-mono text-gray-200 leading-none">{{ status.odometry.pose.y.toFixed(2) }} m</span>
+        </div>
+        <div class="flex flex-col gap-0.5 w-16 shrink-0">
+          <span class="text-[10px] text-gray-500 leading-none">θ</span>
+          <span class="text-xs font-mono text-gray-200 leading-none">{{ toDeg(status.odometry.pose.theta) }}°</span>
+        </div>
+        <div class="flex flex-col gap-0.5 w-20 shrink-0">
+          <span class="text-[10px] text-gray-500 leading-none">Linear</span>
+          <span class="text-xs font-mono text-gray-200 leading-none">{{ status.odometry.twist.linear.toFixed(3) }} m/s</span>
+        </div>
+        <div class="flex flex-col gap-0.5 w-20 shrink-0">
+          <span class="text-[10px] text-gray-500 leading-none">Angular</span>
+          <span class="text-xs font-mono text-gray-200 leading-none">{{ status.odometry.twist.angular.toFixed(3) }} r/s</span>
+        </div>
+      </div>
+
+    </template>
   </div>
 </template>
