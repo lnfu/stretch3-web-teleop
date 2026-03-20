@@ -135,7 +135,7 @@ watch([rgbUrl, depthUrl, mode], () => {
 <template>
   <div class="relative flex flex-col bg-black rounded overflow-hidden h-full">
     <!-- Label overlay -->
-    <div class="absolute top-2 left-2 z-10 text-white text-xs bg-black/50 px-2 py-0.5 rounded">
+    <div class="absolute top-2 left-2 z-10 text-white text-sm bg-black/50 px-2.5 py-1 rounded">
       {{ label }}{{ rotationLabel }}
     </div>
 
@@ -178,8 +178,8 @@ watch([rgbUrl, depthUrl, mode], () => {
     </template>
 
     <!-- Mode toggle (depth cameras only) -->
-    <div v-if="hasDepth" class="absolute bottom-2 left-1/2 -translate-x-1/2 z-10">
-      <NButtonGroup size="tiny">
+    <div v-if="hasDepth" class="absolute bottom-3 left-1/2 -translate-x-1/2 z-10">
+      <NButtonGroup size="small">
         <NButton :type="mode === 'rgb' ? 'primary' : 'default'" @click="mode = 'rgb'">RGB</NButton>
         <NButton :type="mode === 'depth' ? 'primary' : 'default'" @click="mode = 'depth'">Depth</NButton>
         <NButton :type="mode === 'overlay' ? 'primary' : 'default'" @click="mode = 'overlay'">Overlay</NButton>

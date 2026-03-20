@@ -10,9 +10,9 @@ useWebSocketSingleton()
 
 <template>
   <NConfigProvider :theme="darkTheme">
-    <div class="flex flex-col h-screen bg-gray-950 text-white overflow-hidden">
+    <div class="flex flex-col h-screen bg-gray-950 text-white overflow-hidden p-2 gap-2">
       <TopBar />
-      <div class="flex-1 flex flex-col overflow-hidden min-h-0">
+      <div class="flex-1 flex flex-col overflow-hidden min-h-0 gap-2">
         <!-- Top: all cameras + status (inside CameraGrid) -->
         <div class="flex-1 min-h-0 overflow-hidden">
           <CameraGrid />

@@ -5,12 +5,12 @@ import RecordButton from './RecordButton.vue'
 </script>
 
 <template>
-  <div class="flex items-center justify-between px-4 py-2 bg-gray-900 border-b border-gray-700">
-    <div class="flex items-center gap-3">
-      <NText strong style="font-size: 1.1rem; color: white">Stretch 3</NText>
+  <div class="flex items-center justify-between px-5 py-3 bg-gray-900 border border-gray-700 rounded-xl shrink-0">
+    <div class="flex items-center gap-4">
+      <NText strong style="font-size: 1.3rem; color: white">Stretch 3</NText>
       <span
         :class="[
-          'text-xs font-medium px-2 py-0.5 rounded-full',
+          'text-sm font-medium px-3 py-1 rounded-full',
           isConnected ? 'bg-green-600 text-white' : 'bg-red-600 text-white',
         ]"
       >

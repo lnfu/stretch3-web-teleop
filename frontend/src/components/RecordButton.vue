@@ -56,14 +56,14 @@ function toggle() {
   <div class="flex items-center gap-2">
     <span
       v-if="recordingStore.isRecording"
-      class="flex items-center gap-1 text-red-400 text-sm"
+      class="flex items-center gap-1.5 text-red-400 text-base"
     >
-      <span class="animate-pulse w-2 h-2 bg-red-500 rounded-full inline-block"></span>
+      <span class="animate-pulse w-2.5 h-2.5 bg-red-500 rounded-full inline-block"></span>
       {{ elapsedStr }}
     </span>
     <NButton
       :type="recordingStore.isRecording ? 'error' : 'primary'"
-      size="small"
+      size="medium"
       @click="toggle"
     >
       {{ recordingStore.isRecording ? 'Stop Recording' : 'Record' }}
