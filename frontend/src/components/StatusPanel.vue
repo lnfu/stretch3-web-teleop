@@ -1,17 +1,30 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRobotStore } from '../stores/robotStore'
+import { sendMessage } from '../composables/useWebSocket'
+import { resetToInitial } from '../composables/useJointCache'
 
 const robotStore = useRobotStore()
 const status = computed(() => robotStore.status)
 
 const toDeg = (r: number) => ((r * 180) / Math.PI).toFixed(1)
+
+function onHome() {
+  resetToInitial(sendMessage)
+}
 </script>
 
 <template>
   <div class="flex items-center gap-2 px-3 py-3 border border-gray-200 rounded-xl bg-white">
     <div v-if="!status" class="text-gray-400 text-xs">Waiting for robot status...</div>
     <template v-else>
+
+      <!-- Home / reset button -->
+      <button
+        class="w-14 h-14 rounded-full flex items-center justify-center shrink-0 bg-gray-100 hover:bg-amber-100 active:bg-amber-200 text-gray-500 hover:text-amber-700 transition-colors border border-gray-200 text-xl"
+        title="Reset to home position"
+        @click="onHome"
+      >⌂</button>
 
       <!-- Charging -->
       <div :class="[

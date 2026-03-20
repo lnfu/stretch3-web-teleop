@@ -1,11 +1,8 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
-import { useRobotStore } from '../stores/robotStore'
+import { computed } from 'vue'
 import { sendMessage } from '../composables/useWebSocket'
+import { cachedPositions } from '../composables/useJointCache'
 import StatusPanel from './StatusPanel.vue'
-
-const robotStore = useRobotStore()
-const lastGripperCmd = ref(0)
 
 interface JointDef {
   index: number
@@ -65,26 +62,24 @@ function gripperColor(i: number): string {
   return `hsl(${h}, ${s}%, ${l}%)`
 }
 
-const gripperStatus = computed(() =>
-  (robotStore.status?.joint_positions[9] ?? 0).toFixed(1),
-)
+const gripperCached = computed(() => cachedPositions.value[9] ?? 0)
 
 function adjust(jointIndex: number, delta: number) {
-  const positions = [...robotStore.jointPositions] as number[]
+  const positions = [...cachedPositions.value]
   positions[jointIndex] = (positions[jointIndex] ?? 0) + delta
-  positions[9] = lastGripperCmd.value
+  cachedPositions.value = positions
   sendMessage({ type: 'command', topic: 'manipulator', joint_positions: positions })
 }
 
 function setGripper(val: number) {
-  lastGripperCmd.value = val
-  const positions = [...robotStore.jointPositions] as number[]
+  const positions = [...cachedPositions.value]
   positions[9] = val
+  cachedPositions.value = positions
   sendMessage({ type: 'command', topic: 'manipulator', joint_positions: positions })
 }
 
 function value(index: number): string {
-  return (robotStore.jointPositions[index] ?? 0).toFixed(2)
+  return (cachedPositions.value[index] ?? 0).toFixed(2)
 }
 </script>
 
@@ -150,13 +145,13 @@ function value(index: number): string {
       <div class="grid gap-2 border border-gray-200 rounded-xl px-3 py-3 bg-white" style="grid-template-rows: auto 1fr auto">
         <div class="flex items-center gap-2">
           <span class="text-[11px] font-bold uppercase tracking-widest" style="color: #db2777">Gripper</span>
-          <span class="text-xs font-mono text-gray-500">{{ gripperStatus }}</span>
+          <span class="text-xs font-mono text-gray-500">{{ gripperCached.toFixed(1) }}</span>
         </div>
         <div class="grid grid-cols-12 gap-1">
           <button v-for="(val, i) in GRIPPER_PRESETS" :key="val" :style="{ backgroundColor: gripperColor(i) }"
             :title="`${val}`" :class="[
               'rounded-md select-none transition-all duration-150',
-              val === lastGripperCmd
+              val === gripperCached
                 ? 'ring-2 ring-gray-800/60 ring-offset-1 ring-offset-white scale-y-110 brightness-110'
                 : 'hover:brightness-110 hover:scale-y-105',
             ]" @click="setGripper(val)" />

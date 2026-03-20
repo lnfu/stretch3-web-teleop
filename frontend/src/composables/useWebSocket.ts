@@ -3,6 +3,7 @@ import { useWebSocket as vueUseWebSocket } from '@vueuse/core'
 import { useRobotStore } from '../stores/robotStore'
 import { useRecordingStore } from '../stores/recordingStore'
 import { CAMERA_ID_MAP, type CameraId, type RobotStatus, type RecordingState } from '../types/protocol'
+import { INITIAL_POSITIONS, cachedPositions } from './useJointCache'
 
 export const cameraFrames: Record<CameraId, Ref<string | null>> = {
   arducam: ref(null),
@@ -24,6 +25,8 @@ function initWebSocket() {
     },
     onConnected() {
       isConnected.value = true
+      cachedPositions.value = [...INITIAL_POSITIONS]
+      sendMessage({ type: 'command', topic: 'manipulator', joint_positions: [...INITIAL_POSITIONS] })
     },
     onDisconnected() {
       isConnected.value = false
