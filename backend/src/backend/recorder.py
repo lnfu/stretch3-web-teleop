@@ -1,11 +1,9 @@
 import asyncio
 import logging
-import platform
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from pathlib import Path
 
-import cv2
 import h5py
 import numpy as np
 
@@ -86,11 +84,6 @@ class Recorder:
         await loop.run_in_executor(self._executor, self._close_h5_files)
         logger.info(f"Recording stopped: {self._session_name}")
         return self._session_dir
-
-    async def generate_previews(self, session_dir: Path) -> None:
-        """Run preview generation in a thread pool (CPU-bound). Awaitable."""
-        loop = asyncio.get_running_loop()
-        await loop.run_in_executor(None, self._generate_previews, session_dir)
 
     def record_camera(self, camera_id: int, timestamp_ns: int, frame: np.ndarray) -> None:
         if not self._recording:
@@ -241,64 +234,3 @@ class Recorder:
         fj["positions"][nj] = positions
         fj.flush()
 
-    def _generate_previews(self, session_dir: Path | None = None) -> None:
-        if session_dir is None:
-            session_dir = self._session_dir
-        if not session_dir:
-            return
-        preview_dir = session_dir / "preview"
-        preview_dir.mkdir(exist_ok=True)
-
-        for camera_id, name in CAMERA_NAMES.items():
-            h5_path = session_dir / CAMERA_FILES[camera_id]
-            if not h5_path.exists():
-                continue
-            is_depth = camera_id in (CAMERA_ID_D435I_DEPTH, CAMERA_ID_D405_DEPTH)
-            try:
-                with h5py.File(h5_path, "r") as f:
-                    if "frames" not in f or "timestamps" not in f:
-                        continue
-                    frames = f["frames"][:]
-                    timestamps = f["timestamps"][:]
-
-                n = len(frames)
-                if n == 0:
-                    continue
-
-                # Compute FPS from recorded timestamps
-                if n >= 2:
-                    duration_s = (int(timestamps[-1]) - int(timestamps[0])) / 1e9
-                    fps = (n - 1) / duration_s if duration_s > 0 else 10.0
-                else:
-                    fps = 10.0
-                fps = float(max(1.0, min(fps, 120.0)))
-
-                h, w = frames[0].shape[:2]
-                out_path = str(preview_dir / f"{name}.mp4")
-
-                # On Linux, avc1 triggers the h264_v4l2m2m hardware encoder which
-                # may not be available; use mp4v (MPEG-4) directly to avoid errors.
-                # On macOS, avc1 uses the native software encoder and is preferred.
-                if platform.system() == "Darwin":
-                    fourcc = cv2.VideoWriter_fourcc(*"avc1")
-                    writer = cv2.VideoWriter(out_path, fourcc, fps, (w, h))
-                    if not writer.isOpened():
-                        fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-                        writer = cv2.VideoWriter(out_path, fourcc, fps, (w, h))
-                else:
-                    fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-                    writer = cv2.VideoWriter(out_path, fourcc, fps, (w, h))
-
-                for frame in frames:
-                    if is_depth:
-                        bgr = cv2.applyColorMap(
-                            cv2.convertScaleAbs(frame, alpha=0.03), cv2.COLORMAP_JET
-                        )
-                    else:
-                        bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
-                    writer.write(bgr)
-
-                writer.release()
-                logger.info(f"Preview saved: {out_path} ({n} frames @ {fps:.1f} fps)")
-            except Exception as e:
-                logger.error(f"Failed to save preview for {name}: {e}")

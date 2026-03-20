@@ -64,11 +64,21 @@ function gripperColor(i: number): string {
 
 const gripperCached = computed(() => cachedPositions.value[9] ?? 0)
 
+// Indices 0 (base translate) and 1 (base rotate) are delta-controlled and must
+// never be cached — they always send the raw delta and are 0 in all other commands.
+const BASE_DELTA_INDICES = new Set([0, 1])
+
 function adjust(jointIndex: number, delta: number) {
   const positions = [...cachedPositions.value]
-  positions[jointIndex] = (positions[jointIndex] ?? 0) + delta
-  cachedPositions.value = positions
-  sendMessage({ type: 'command', topic: 'manipulator', joint_positions: positions })
+  if (BASE_DELTA_INDICES.has(jointIndex)) {
+    positions[jointIndex] = delta
+    sendMessage({ type: 'command', topic: 'manipulator', joint_positions: positions })
+    // Do not update cachedPositions so base slots stay at 0.
+  } else {
+    positions[jointIndex] = (positions[jointIndex] ?? 0) + delta
+    cachedPositions.value = positions
+    sendMessage({ type: 'command', topic: 'manipulator', joint_positions: positions })
+  }
 }
 
 function setGripper(val: number) {

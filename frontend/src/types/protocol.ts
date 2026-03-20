@@ -39,8 +39,3 @@ export interface RecordingState {
   recording: boolean
   session: string | null
 }
-
-export interface PreviewReady {
-  type: 'preview_ready'
-  session: string
-}

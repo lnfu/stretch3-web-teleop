@@ -112,20 +112,7 @@ async def websocket_endpoint(websocket: WebSocket):
                             }
                         )
                     )
-                    # Drain queue, close files, and generate preview in background.
-                    async def _stop_task(sn=session):
-                        sd = await recorder.stop()
-                        await recorder.generate_previews(sd)
-                        await broadcast(
-                            json.dumps(
-                                {
-                                    "type": "preview_ready",
-                                    "session": sn,
-                                }
-                            )
-                        )
-
-                    asyncio.create_task(_stop_task())
+                    asyncio.create_task(recorder.stop())
 
             else:
                 logger.warning("Unknown WS message type: %s", msg_type)
