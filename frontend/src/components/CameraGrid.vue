@@ -1,20 +1,24 @@
 <script setup lang="ts">
 import CameraFeed from './CameraFeed.vue'
+import StatusPanel from './StatusPanel.vue'
 </script>
 
 <template>
-  <div class="flex flex-col gap-2 h-full p-2">
-    <!-- Arducam: ~60% height -->
-    <div class="flex-[3]">
-      <CameraFeed camera-id="arducam" label="Arducam (RGB)" />
+  <div class="flex h-full gap-2 p-2">
+    <!-- Portrait cameras -->
+    <div class="flex-[9] min-w-0">
+      <CameraFeed camera-id="arducam" label="Arducam" :rotation="-90" />
     </div>
-    <!-- Bottom row: d435i and d405 ~40% height -->
-    <div class="flex-[2] flex gap-2">
-      <div class="flex-1">
-        <CameraFeed camera-id="d435i" label="D435i" />
-      </div>
-      <div class="flex-1">
+    <div class="flex-[12] min-w-0">
+      <CameraFeed camera-id="d435i" label="D435i" :rotation="90" />
+    </div>
+    <!-- D405 (landscape, larger) + status below -->
+    <div class="flex-[20] flex flex-col min-w-0 gap-2">
+      <div class="flex-1 min-h-0">
         <CameraFeed camera-id="d405" label="D405" />
+      </div>
+      <div class="shrink-0">
+        <StatusPanel />
       </div>
     </div>
   </div>
