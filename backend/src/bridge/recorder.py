@@ -43,7 +43,6 @@ class Recorder:
         self._queue: asyncio.Queue = asyncio.Queue()
         self._drain_task: asyncio.Task | None = None
         self._h5_files: dict = {}
-        self._last_frames: dict[int, np.ndarray] = {}
 
     @property
     def is_recording(self) -> bool:
@@ -61,7 +60,6 @@ class Recorder:
         self._session_dir = recordings_dir / self._session_name
         self._session_dir.mkdir(parents=True, exist_ok=True)
         self._h5_files = {}
-        self._last_frames = {}
         self._recording = True
         self._drain_task = asyncio.create_task(self._drain_loop())
         logger.info(f"Recording started: {self._session_name}")
@@ -94,7 +92,6 @@ class Recorder:
     def record_camera(self, camera_id: int, timestamp_ns: int, frame: np.ndarray) -> None:
         if not self._recording:
             return
-        self._last_frames[camera_id] = frame.copy()
         self._queue.put_nowait(("camera", camera_id, timestamp_ns, frame.copy()))
 
     def record_status(self, timestamp_ns: int, status: dict) -> None:
@@ -239,19 +236,49 @@ class Recorder:
         preview_dir.mkdir(exist_ok=True)
 
         for camera_id, name in CAMERA_NAMES.items():
-            frame = self._last_frames.get(camera_id)
-            if frame is None:
+            h5_path = self._session_dir / CAMERA_FILES[camera_id]
+            if not h5_path.exists():
                 continue
             is_depth = camera_id in (CAMERA_ID_D435I_DEPTH, CAMERA_ID_D405_DEPTH)
             try:
-                if is_depth:
-                    heatmap = cv2.applyColorMap(
-                        cv2.convertScaleAbs(frame, alpha=0.03), cv2.COLORMAP_JET
-                    )
-                    cv2.imwrite(str(preview_dir / f"{name}.png"), heatmap)
+                with h5py.File(h5_path, "r") as f:
+                    if "frames" not in f or "timestamps" not in f:
+                        continue
+                    frames = f["frames"][:]
+                    timestamps = f["timestamps"][:]
+
+                n = len(frames)
+                if n == 0:
+                    continue
+
+                # Compute FPS from recorded timestamps
+                if n >= 2:
+                    duration_s = (int(timestamps[-1]) - int(timestamps[0])) / 1e9
+                    fps = (n - 1) / duration_s if duration_s > 0 else 10.0
                 else:
-                    # frame is RGB, convert to BGR for cv2
-                    bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
-                    cv2.imwrite(str(preview_dir / f"{name}.png"), bgr)
+                    fps = 10.0
+                fps = float(max(1.0, min(fps, 120.0)))
+
+                h, w = frames[0].shape[:2]
+                out_path = str(preview_dir / f"{name}.mp4")
+
+                # Try H264 first (smaller), fall back to mp4v
+                fourcc = cv2.VideoWriter_fourcc(*"avc1")
+                writer = cv2.VideoWriter(out_path, fourcc, fps, (w, h))
+                if not writer.isOpened():
+                    fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+                    writer = cv2.VideoWriter(out_path, fourcc, fps, (w, h))
+
+                for frame in frames:
+                    if is_depth:
+                        bgr = cv2.applyColorMap(
+                            cv2.convertScaleAbs(frame, alpha=0.03), cv2.COLORMAP_JET
+                        )
+                    else:
+                        bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+                    writer.write(bgr)
+
+                writer.release()
+                logger.info(f"Preview saved: {out_path} ({n} frames @ {fps:.1f} fps)")
             except Exception as e:
                 logger.error(f"Failed to save preview for {name}: {e}")
