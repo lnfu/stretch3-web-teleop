@@ -1,6 +1,7 @@
 import asyncio
 import logging
-import os
+import platform
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from pathlib import Path
 
@@ -43,6 +44,9 @@ class Recorder:
         self._queue: asyncio.Queue = asyncio.Queue()
         self._drain_task: asyncio.Task | None = None
         self._h5_files: dict = {}
+        # Single-worker executor: h5py is not thread-safe; one dedicated thread
+        # keeps all file I/O off the asyncio event loop without concurrency issues.
+        self._executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="recorder")
 
     @property
     def is_recording(self) -> bool:
@@ -65,29 +69,28 @@ class Recorder:
         logger.info(f"Recording started: {self._session_name}")
         return self._session_name
 
-    async def stop(self) -> None:
+    async def stop(self) -> "Path | None":
         if not self._recording:
             return
         self._recording = False
         if self._drain_task:
-            # Drain remaining items before cancelling
+            # Wait for all queued writes to finish before tearing down.
             await self._queue.join()
             self._drain_task.cancel()
             try:
                 await self._drain_task
             except asyncio.CancelledError:
                 pass
-        # Close all HDF5 files
-        for f in self._h5_files.values():
-            try:
-                f.close()
-            except Exception:
-                pass
-        self._h5_files.clear()
-        # Generate previews in a thread pool to avoid blocking the event loop
-        loop = asyncio.get_event_loop()
-        await loop.run_in_executor(None, self._generate_previews)
+        loop = asyncio.get_running_loop()
+        # Close HDF5 files on the same executor thread that wrote them.
+        await loop.run_in_executor(self._executor, self._close_h5_files)
         logger.info(f"Recording stopped: {self._session_name}")
+        return self._session_dir
+
+    async def generate_previews(self, session_dir: Path) -> None:
+        """Run preview generation in a thread pool (CPU-bound). Awaitable."""
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(None, self._generate_previews, session_dir)
 
     def record_camera(self, camera_id: int, timestamp_ns: int, frame: np.ndarray) -> None:
         if not self._recording:
@@ -100,33 +103,42 @@ class Recorder:
         self._queue.put_nowait(("status", timestamp_ns, status))
 
     async def _drain_loop(self):
+        loop = asyncio.get_running_loop()
         while True:
             try:
                 item = await self._queue.get()
                 try:
                     if item[0] == "camera":
                         _, camera_id, timestamp_ns, frame = item
-                        self._write_camera(camera_id, timestamp_ns, frame)
+                        await loop.run_in_executor(
+                            self._executor,
+                            self._write_camera,
+                            camera_id,
+                            timestamp_ns,
+                            frame,
+                        )
                     elif item[0] == "status":
                         _, timestamp_ns, status = item
-                        self._write_status(timestamp_ns, status)
+                        await loop.run_in_executor(
+                            self._executor,
+                            self._write_status,
+                            timestamp_ns,
+                            status,
+                        )
                 finally:
                     self._queue.task_done()
             except asyncio.CancelledError:
-                # Drain remaining items synchronously before exiting
-                while not self._queue.empty():
-                    try:
-                        item = self._queue.get_nowait()
-                        if item[0] == "camera":
-                            _, camera_id, timestamp_ns, frame = item
-                            self._write_camera(camera_id, timestamp_ns, frame)
-                        elif item[0] == "status":
-                            _, timestamp_ns, status = item
-                            self._write_status(timestamp_ns, status)
-                        self._queue.task_done()
-                    except asyncio.QueueEmpty:
-                        break
+                # stop() drains the queue via queue.join() before cancelling,
+                # so the queue is empty here; just exit cleanly.
                 raise
+
+    def _close_h5_files(self) -> None:
+        for f in self._h5_files.values():
+            try:
+                f.close()
+            except Exception:
+                pass
+        self._h5_files.clear()
 
     def _get_h5_file(self, key: str) -> h5py.File:
         if key not in self._h5_files:
@@ -229,14 +241,16 @@ class Recorder:
         fj["positions"][nj] = positions
         fj.flush()
 
-    def _generate_previews(self) -> None:
-        if not self._session_dir:
+    def _generate_previews(self, session_dir: Path | None = None) -> None:
+        if session_dir is None:
+            session_dir = self._session_dir
+        if not session_dir:
             return
-        preview_dir = self._session_dir / "preview"
+        preview_dir = session_dir / "preview"
         preview_dir.mkdir(exist_ok=True)
 
         for camera_id, name in CAMERA_NAMES.items():
-            h5_path = self._session_dir / CAMERA_FILES[camera_id]
+            h5_path = session_dir / CAMERA_FILES[camera_id]
             if not h5_path.exists():
                 continue
             is_depth = camera_id in (CAMERA_ID_D435I_DEPTH, CAMERA_ID_D405_DEPTH)
@@ -262,10 +276,16 @@ class Recorder:
                 h, w = frames[0].shape[:2]
                 out_path = str(preview_dir / f"{name}.mp4")
 
-                # Try H264 first (smaller), fall back to mp4v
-                fourcc = cv2.VideoWriter_fourcc(*"avc1")
-                writer = cv2.VideoWriter(out_path, fourcc, fps, (w, h))
-                if not writer.isOpened():
+                # On Linux, avc1 triggers the h264_v4l2m2m hardware encoder which
+                # may not be available; use mp4v (MPEG-4) directly to avoid errors.
+                # On macOS, avc1 uses the native software encoder and is preferred.
+                if platform.system() == "Darwin":
+                    fourcc = cv2.VideoWriter_fourcc(*"avc1")
+                    writer = cv2.VideoWriter(out_path, fourcc, fps, (w, h))
+                    if not writer.isOpened():
+                        fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+                        writer = cv2.VideoWriter(out_path, fourcc, fps, (w, h))
+                else:
                     fourcc = cv2.VideoWriter_fourcc(*"mp4v")
                     writer = cv2.VideoWriter(out_path, fourcc, fps, (w, h))
 

@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 import struct
@@ -101,7 +102,7 @@ async def websocket_endpoint(websocket: WebSocket):
             elif msg_type == "recording_stop":
                 if recorder.is_recording:
                     session = recorder.session_name
-                    await recorder.stop()
+                    # Broadcast stop immediately so the UI updates right away.
                     await broadcast(
                         json.dumps(
                             {
@@ -111,6 +112,20 @@ async def websocket_endpoint(websocket: WebSocket):
                             }
                         )
                     )
+                    # Drain queue, close files, and generate preview in background.
+                    async def _stop_task(sn=session):
+                        sd = await recorder.stop()
+                        await recorder.generate_previews(sd)
+                        await broadcast(
+                            json.dumps(
+                                {
+                                    "type": "preview_ready",
+                                    "session": sn,
+                                }
+                            )
+                        )
+
+                    asyncio.create_task(_stop_task())
 
             else:
                 logger.warning("Unknown WS message type: %s", msg_type)

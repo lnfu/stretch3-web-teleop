@@ -1,9 +1,12 @@
 import { ref, type Ref } from 'vue'
 import { useWebSocket as vueUseWebSocket } from '@vueuse/core'
+import { createDiscreteApi } from 'naive-ui'
 import { useRobotStore } from '../stores/robotStore'
 import { useRecordingStore } from '../stores/recordingStore'
-import { CAMERA_ID_MAP, type CameraId, type RobotStatus, type RecordingState } from '../types/protocol'
+import { CAMERA_ID_MAP, type CameraId, type RobotStatus, type RecordingState, type PreviewReady } from '../types/protocol'
 import { INITIAL_POSITIONS, cachedPositions } from './useJointCache'
+
+const { notification } = createDiscreteApi(['notification'])
 
 export const cameraFrames: Record<CameraId, Ref<string | null>> = {
   arducam: ref(null),
@@ -76,6 +79,14 @@ function handleTextMessage(text: string) {
     } else if (msg.type === 'recording_state') {
       const rs = msg as RecordingState
       recordingStore.setRecording(rs.recording, rs.session)
+    } else if (msg.type === 'preview_ready') {
+      const pr = msg as PreviewReady
+      notification.success({
+        title: 'Preview ready',
+        content: `recordings/${pr.session}/preview/`,
+        duration: 8000,
+        keepAliveOnHover: true,
+      })
     }
   } catch (e) {
     console.error('Failed to parse WS message', e)
