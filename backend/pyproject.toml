@@ -11,11 +11,12 @@ dependencies = [
     "hatchling>=1.29.0",
     "msgpack>=1.1.2",
     "numpy>=2.4.3",
-"pillow>=12.1.1",
+    "pillow>=12.1.1",
     "pydantic-settings>=2.13.1",
     "python-dotenv>=1.2.2",
     "pyzmq>=27.1.0",
     "stretch3-zmq-core",
+    "urchin>=0.0.30",
     "uvicorn[standard]>=0.42.0",
 ]
 
