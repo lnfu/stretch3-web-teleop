@@ -172,7 +172,6 @@ class Recorder:
         ts_ds[n] = timestamp_ns
         fr_ds.resize((n + 1,) + frame.shape)
         fr_ds[n] = frame
-        f.flush()
 
     def _write_status(self, timestamp_ns: int, status: dict) -> None:
         # Odometry
@@ -205,7 +204,6 @@ class Recorder:
             ds = f[name]
             ds.resize((n + 1,))
             ds[n] = val
-        f.flush()
 
         # Joint states
         fj = self._get_h5_file("joint_states.h5")
@@ -232,5 +230,4 @@ class Recorder:
         fj["timestamps"][nj] = timestamp_ns
         fj["positions"].resize((nj + 1, 10))
         fj["positions"][nj] = positions
-        fj.flush()
 
