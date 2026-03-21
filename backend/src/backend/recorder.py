@@ -17,14 +17,6 @@ CAMERA_ID_D435I_DEPTH = 0x02
 CAMERA_ID_D405_RGB = 0x03
 CAMERA_ID_D405_DEPTH = 0x04
 
-CAMERA_FILES = {
-    CAMERA_ID_ARDUCAM: "arducam_rgb.h5",
-    CAMERA_ID_D435I_RGB: "d435i_rgb.h5",
-    CAMERA_ID_D435I_DEPTH: "d435i_depth.h5",
-    CAMERA_ID_D405_RGB: "d405_rgb.h5",
-    CAMERA_ID_D405_DEPTH: "d405_depth.h5",
-}
-
 CAMERA_NAMES = {
     CAMERA_ID_ARDUCAM: "arducam_rgb",
     CAMERA_ID_D435I_RGB: "d435i_rgb",
@@ -38,10 +30,10 @@ class Recorder:
     def __init__(self):
         self._recording = False
         self._session_name: str | None = None
-        self._session_dir: Path | None = None
+        self._session_file: Path | None = None
         self._queue: asyncio.Queue = asyncio.Queue()
         self._drain_task: asyncio.Task | None = None
-        self._h5_files: dict = {}
+        self._h5_file: h5py.File | None = None
         # Single-worker executor: h5py is not thread-safe; one dedicated thread
         # keeps all file I/O off the asyncio event loop without concurrency issues.
         self._executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="recorder")
@@ -59,9 +51,9 @@ class Recorder:
             return self._session_name  # type: ignore[return-value]
         self._session_name = datetime.now().strftime("%Y%m%d_%H%M%S")
         recordings_dir = Path(settings.recordings_dir)
-        self._session_dir = recordings_dir / self._session_name
-        self._session_dir.mkdir(parents=True, exist_ok=True)
-        self._h5_files = {}
+        recordings_dir.mkdir(parents=True, exist_ok=True)
+        self._session_file = recordings_dir / f"{self._session_name}.h5"
+        self._h5_file = None
         self._recording = True
         self._drain_task = asyncio.create_task(self._drain_loop())
         logger.info(f"Recording started: {self._session_name}")
@@ -80,10 +72,10 @@ class Recorder:
             except asyncio.CancelledError:
                 pass
         loop = asyncio.get_running_loop()
-        # Close HDF5 files on the same executor thread that wrote them.
-        await loop.run_in_executor(self._executor, self._close_h5_files)
+        # Close HDF5 file on the same executor thread that wrote it.
+        await loop.run_in_executor(self._executor, self._close_h5_file)
         logger.info(f"Recording stopped: {self._session_name}")
-        return self._session_dir
+        return self._session_file
 
     def record_camera(self, camera_id: int, timestamp_ns: int, frame: np.ndarray) -> None:
         if not self._recording:
@@ -125,48 +117,46 @@ class Recorder:
                 # so the queue is empty here; just exit cleanly.
                 raise
 
-    def _close_h5_files(self) -> None:
-        for f in self._h5_files.values():
+    def _close_h5_file(self) -> None:
+        if self._h5_file is not None:
             try:
-                f.close()
+                self._h5_file.close()
             except Exception:
                 pass
-        self._h5_files.clear()
+            self._h5_file = None
 
-    def _get_h5_file(self, key: str) -> h5py.File:
-        if key not in self._h5_files:
-            assert self._session_dir is not None
-            path = self._session_dir / key
-            self._h5_files[key] = h5py.File(path, "a")
-        return self._h5_files[key]
+    def _get_h5(self) -> h5py.File:
+        if self._h5_file is None:
+            assert self._session_file is not None
+            self._h5_file = h5py.File(self._session_file, "a")
+        return self._h5_file
 
     def _write_camera(self, camera_id: int, timestamp_ns: int, frame: np.ndarray) -> None:
-        filename = CAMERA_FILES.get(camera_id)
-        if not filename:
+        name = CAMERA_NAMES.get(camera_id)
+        if not name:
             return
-        f = self._get_h5_file(filename)
+        f = self._get_h5()
         is_depth = camera_id in (CAMERA_ID_D435I_DEPTH, CAMERA_ID_D405_DEPTH)
         dtype = np.uint16 if is_depth else np.uint8
         frame = frame.astype(dtype)
 
-        if "timestamps" not in f:
-            f.create_dataset(
+        if name not in f:
+            grp = f.create_group(name)
+            grp.create_dataset(
                 "timestamps", shape=(0,), maxshape=(None,), dtype=np.uint64, chunks=(1,)
             )
-        if "frames" not in f:
-            shape = (0,) + frame.shape
-            maxshape = (None,) + frame.shape
-            f.create_dataset(
+            grp.create_dataset(
                 "frames",
-                shape=shape,
-                maxshape=maxshape,
+                shape=(0,) + frame.shape,
+                maxshape=(None,) + frame.shape,
                 dtype=dtype,
                 chunks=(1,) + frame.shape,
                 compression="lzf",
             )
 
-        ts_ds = f["timestamps"]
-        fr_ds = f["frames"]
+        grp = f[name]
+        ts_ds = grp["timestamps"]
+        fr_ds = grp["frames"]
         n = ts_ds.shape[0]
         ts_ds.resize((n + 1,))
         ts_ds[n] = timestamp_ns
@@ -174,8 +164,9 @@ class Recorder:
         fr_ds[n] = frame
 
     def _write_status(self, timestamp_ns: int, status: dict) -> None:
+        f = self._get_h5()
+
         # Odometry
-        f = self._get_h5_file("odometry.h5")
         odom = status.get("odometry", {})
         pose = odom.get("pose", {})
         twist = odom.get("twist", {})
@@ -185,14 +176,16 @@ class Recorder:
         linear = float(twist.get("linear", 0.0))
         angular = float(twist.get("angular", 0.0))
 
-        if "timestamps" not in f:
+        if "odometry" not in f:
+            grp = f.create_group("odometry")
             for name in ("timestamps", "x", "y", "theta", "linear", "angular"):
                 dtype = np.uint64 if name == "timestamps" else np.float64
-                f.create_dataset(
+                grp.create_dataset(
                     name, shape=(0,), maxshape=(None,), dtype=dtype, chunks=(1,)
                 )
 
-        n = f["timestamps"].shape[0]
+        grp = f["odometry"]
+        n = grp["timestamps"].shape[0]
         for name, val in [
             ("timestamps", timestamp_ns),
             ("x", x),
@@ -201,23 +194,22 @@ class Recorder:
             ("linear", linear),
             ("angular", angular),
         ]:
-            ds = f[name]
+            ds = grp[name]
             ds.resize((n + 1,))
             ds[n] = val
 
         # Joint states
-        fj = self._get_h5_file("joint_states.h5")
         positions_raw = list(status.get("joint_positions", [0.0] * 10))
         positions = np.array(positions_raw[:10], dtype=np.float64)
-        # Pad to 10 if fewer values
         if len(positions) < 10:
             positions = np.pad(positions, (0, 10 - len(positions)))
 
-        if "timestamps" not in fj:
-            fj.create_dataset(
+        if "joint_states" not in f:
+            grp = f.create_group("joint_states")
+            grp.create_dataset(
                 "timestamps", shape=(0,), maxshape=(None,), dtype=np.uint64, chunks=(1,)
             )
-            fj.create_dataset(
+            grp.create_dataset(
                 "positions",
                 shape=(0, 10),
                 maxshape=(None, 10),
@@ -225,9 +217,9 @@ class Recorder:
                 chunks=(1, 10),
             )
 
-        nj = fj["timestamps"].shape[0]
-        fj["timestamps"].resize((nj + 1,))
-        fj["timestamps"][nj] = timestamp_ns
-        fj["positions"].resize((nj + 1, 10))
-        fj["positions"][nj] = positions
-
+        grp = f["joint_states"]
+        nj = grp["timestamps"].shape[0]
+        grp["timestamps"].resize((nj + 1,))
+        grp["timestamps"][nj] = timestamp_ns
+        grp["positions"].resize((nj + 1, 10))
+        grp["positions"][nj] = positions

@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
-"""Generate a preview MP4 from a recorded HDF5 camera file.
+"""Generate a preview MP4 from a recorded HDF5 camera stream.
 
 Usage:
-    uv run python scripts/make_preview.py <recording_dir> <camera> [options]
+    uv run python scripts/make_preview.py <recording.h5> <camera> [options]
 
 Camera choices:
     arducam_rgb, d435i_rgb, d435i_depth, d405_rgb, d405_depth
 
 Examples:
-    uv run python scripts/make_preview.py recordings/20260320_170326 d405_rgb
-    uv run python scripts/make_preview.py recordings/20260320_170326 d435i_depth --colormap TURBO
-    uv run python scripts/make_preview.py recordings/20260320_170326 d405_rgb -o /tmp/out.mp4
+    uv run python scripts/make_preview.py recordings/20260320_170326.h5 d405_rgb
+    uv run python scripts/make_preview.py recordings/20260320_170326.h5 d435i_depth --colormap TURBO
+    uv run python scripts/make_preview.py recordings/20260320_170326.h5 d405_rgb -o /tmp/out.mp4
 """
 
 import argparse
@@ -21,13 +21,13 @@ import cv2
 import h5py
 import numpy as np
 
-CAMERA_FILES = {
-    "arducam_rgb": "arducam_rgb.h5",
-    "d435i_rgb": "d435i_rgb.h5",
-    "d435i_depth": "d435i_depth.h5",
-    "d405_rgb": "d405_rgb.h5",
-    "d405_depth": "d405_depth.h5",
-}
+CAMERA_NAMES = [
+    "arducam_rgb",
+    "d435i_rgb",
+    "d435i_depth",
+    "d405_rgb",
+    "d405_depth",
+]
 
 DEPTH_CAMERAS = {"d435i_depth", "d405_depth"}
 
@@ -57,13 +57,12 @@ def depth_to_heatmap(frame: np.ndarray, colormap: int) -> np.ndarray:
 
 
 def make_preview(
-    recording_dir: Path,
+    h5_path: Path,
     camera: str,
     output: Path | None,
     colormap_name: str,
     fps: float | None,
 ) -> Path:
-    h5_path = recording_dir / CAMERA_FILES[camera]
     if not h5_path.exists():
         print(f"Error: {h5_path} not found", file=sys.stderr)
         sys.exit(1)
@@ -72,7 +71,12 @@ def make_preview(
     colormap = COLORMAPS[colormap_name]
 
     with h5py.File(h5_path, "r") as f:
-        timestamps = f["timestamps"][:]
+        if camera not in f:
+            print(f"Error: group '{camera}' not found in {h5_path}", file=sys.stderr)
+            sys.exit(1)
+
+        grp = f[camera]
+        timestamps = grp["timestamps"][:]
         n_frames = len(timestamps)
         if n_frames == 0:
             print("Error: no frames in file", file=sys.stderr)
@@ -82,15 +86,13 @@ def make_preview(
             duration_s = (timestamps[-1] - timestamps[0]) / 1e9
             fps = n_frames / duration_s if duration_s > 0 else 30.0
 
-        first_frame = f["frames"][0]
+        first_frame = grp["frames"][0]
 
     # Determine output size (h5 frames are H×W or H×W×3)
     h, w = first_frame.shape[:2]
 
     if output is None:
-        preview_dir = recording_dir / "preview"
-        preview_dir.mkdir(exist_ok=True)
-        output = preview_dir / f"{camera}.mp4"
+        output = h5_path.parent / f"{h5_path.stem}_preview_{camera}.mp4"
 
     fourcc = cv2.VideoWriter_fourcc(*"mp4v")
     writer = cv2.VideoWriter(str(output), fourcc, fps, (w, h))
@@ -98,7 +100,7 @@ def make_preview(
     print(f"Writing {n_frames} frames at {fps:.1f} fps → {output}")
 
     with h5py.File(h5_path, "r") as f:
-        frames_ds = f["frames"]
+        frames_ds = f[camera]["frames"]
         for i in range(n_frames):
             frame = frames_ds[i]
             if is_depth:
@@ -118,19 +120,19 @@ def make_preview(
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Generate a preview MP4 from a recorded HDF5 camera file."
+        description="Generate a preview MP4 from a recorded HDF5 camera stream."
     )
-    parser.add_argument("recording_dir", type=Path, help="Path to the recording directory")
+    parser.add_argument("recording", type=Path, help="Path to the recording .h5 file")
     parser.add_argument(
         "camera",
-        choices=list(CAMERA_FILES.keys()),
+        choices=CAMERA_NAMES,
         help="Camera stream to render",
     )
     parser.add_argument(
         "-o", "--output",
         type=Path,
         default=None,
-        help="Output MP4 path (default: <recording_dir>/preview/<camera>.mp4)",
+        help="Output MP4 path (default: <recording_dir>/preview/<session>_<camera>.mp4)",
     )
     parser.add_argument(
         "--colormap",
@@ -147,7 +149,7 @@ def main():
     args = parser.parse_args()
 
     make_preview(
-        recording_dir=args.recording_dir,
+        h5_path=args.recording,
         camera=args.camera,
         output=args.output,
         colormap_name=args.colormap,
