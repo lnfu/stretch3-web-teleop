@@ -53,8 +53,9 @@ def align_recording(h5_path: Path) -> Path:
 
             print(f"  aligning {cam}: {len(cam_ts)} → {n} frames")
 
-            ds = dst.create_dataset(
-                cam,
+            cam_grp = dst.require_group(cam)
+            ds = cam_grp.create_dataset(
+                "frames",
                 shape=(n,) + frame_shape,
                 dtype=dtype,
                 chunks=(1,) + frame_shape,
