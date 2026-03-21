@@ -16,6 +16,8 @@ dependencies = [
     "python-dotenv>=1.2.2",
     "pyzmq>=27.1.0",
     "stretch3-zmq-core",
+    "graphviz>=0.20",
+    "ikpy>=3.1",
     "urchin>=0.0.30",
     "uvicorn[standard]>=0.42.0",
 ]

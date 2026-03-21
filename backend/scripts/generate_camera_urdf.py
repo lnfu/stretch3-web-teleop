@@ -134,6 +134,11 @@ def main():
     generate_combined_camera_urdf(original_urdf_path, output_urdf_path, all_links, all_joints)
     print("\nDone!")
 
+    from ikpy.urdf.utils import get_urdf_tree
+
+    dot, _ = get_urdf_tree(output_urdf_path, root_element="base_link", legend=True)
+    dot.render("./data/robot", view=True)
+
 
 if __name__ == "__main__":
     main()
