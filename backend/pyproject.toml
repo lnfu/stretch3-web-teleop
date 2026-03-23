@@ -23,6 +23,7 @@ dependencies = [
     "urchin>=0.0.30",
     "uvicorn[standard]>=0.42.0",
     "pandas>=3.0.1",
+    "rerun-sdk>=0.22",
 ]
 
 [tool.uv.sources]
