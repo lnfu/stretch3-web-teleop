@@ -57,34 +57,38 @@ def log_frame(
     rr.set_time("frame", sequence=frame_idx)
 
     for cam in present_rgb:
-        T: np.ndarray = data[cam]["poses"][frame_idx]  # (4, 4)
-        origin = T[:3, 3].astype(np.float32)
-        R = T[:3, :3].astype(np.float32)
-
-        # --- 3D transform: position + orientation as three axis arrows ---
-        origins = np.vstack([origin, origin, origin])
-        vectors = np.column_stack([R[:, 0], R[:, 1], R[:, 2]]).T * ARROW_LENGTH
-
-        rr.log(
-            f"world/{cam}/axes",
-            rr.Arrows3D(
-                origins=origins,
-                vectors=vectors,
-                colors=AXIS_COLORS,
-                radii=0.004,
-                labels=AXIS_LABELS,
-            ),
-        )
-
-        # Also log Transform3D so the entity tree reflects the pose.
-        rr.log(
-            f"world/{cam}",
-            rr.Transform3D(translation=origin, mat3x3=R),
-        )
-
-        # --- RGB image ---
         rgb = data[cam]["frames"][frame_idx]
-        rr.log(f"world/{cam}/rgb", rr.Image(rgb, color_model="RGB"))
+        poses = data[cam]["poses"]
+
+        if poses is not None:
+            T: np.ndarray = poses[frame_idx]  # (4, 4)
+            origin = T[:3, 3].astype(np.float32)
+            R = T[:3, :3].astype(np.float32)
+
+            # --- 3D transform: position + orientation as three axis arrows ---
+            origins = np.vstack([origin, origin, origin])
+            vectors = np.column_stack([R[:, 0], R[:, 1], R[:, 2]]).T * ARROW_LENGTH
+
+            rr.log(
+                f"world/{cam}/axes",
+                rr.Arrows3D(
+                    origins=origins,
+                    vectors=vectors,
+                    colors=AXIS_COLORS,
+                    radii=0.004,
+                    labels=AXIS_LABELS,
+                ),
+            )
+
+            rr.log(
+                f"world/{cam}",
+                rr.Transform3D(translation=origin, mat3x3=R),
+            )
+
+            rr.log(f"world/{cam}/rgb", rr.Image(rgb, color_model="RGB"))
+        else:
+            # No pose – log as a flat 2D image outside the 3D world tree.
+            rr.log(f"cameras/{cam}/rgb", rr.Image(rgb, color_model="RGB"))
 
     for cam in present_depth:
         depth = data[cam]["frames"][frame_idx]  # H x W uint16, millimetres
@@ -122,12 +126,12 @@ def main() -> None:
                 print(f"  skip {cam} (not in file)")
                 continue
             grp = f[cam]
-            if "camera_pose" not in grp:
-                print(f"  skip {cam} (no camera_pose – run compute_camera_poses.py first)")
-                continue
+            has_pose = "camera_pose" in grp
+            if not has_pose:
+                print(f"  {cam} (no camera_pose – showing RGB only, run compute_camera_poses.py for 3D)")
             data[cam] = {
                 "frames": grp["frames"][:],
-                "poses": grp["camera_pose"][:],
+                "poses": grp["camera_pose"][:] if has_pose else None,
             }
             present_rgb.append(cam)
 
@@ -138,7 +142,8 @@ def main() -> None:
             present_depth.append(cam)
 
     n_frames = len(timestamps)
-    print(f"  {n_frames} frames, {len(present_rgb)} RGB cameras, {len(present_depth)} depth cameras")
+    n_posed = sum(1 for c in present_rgb if data[c]["poses"] is not None)
+    print(f"  {n_frames} frames, {len(present_rgb)} RGB cameras ({n_posed} with pose), {len(present_depth)} depth cameras")
 
     # --- Initialise rerun ---
     rr_kwargs: dict = {}
